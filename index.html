@@ -212,7 +212,37 @@
 (function(){
   "use strict";
   var EMBEDDED_KEY="AIzaSyBAG8CYJ7WtHc-4onk2mq6qCE-0cfvPq-o"; // clave por defecto; se puede cambiar con el botón "Clave"
-  var K_KEY="yt-api-key", K_LIST="mi-musica-list";
+  var K_KEY="yt-api-key", K_LIST="mi-musica-list", K_SEEDED="mi-musica-seeded";
+  // Lista de arranque: si el iPhone borra el almacenamiento, al abrir se reconstruye sola a partir de estos nombres.
+  var DEFAULT_QUERIES=[
+    "Papaya Vaya Papayas Juan Alcaraz",
+    "Encantadora remix Yandel Farruko Zion Lennox",
+    "Pa Bailar Elvis Crespo Beele",
+    "Bonito Bonito Thiago Navarro",
+    "Rise Slow Kimo Sounds",
+    "Y Que Fue Don Miguelo",
+    "Toro Aaron Sevilla Tom Enzy",
+    "Te Encontre Sin Buscarte JM Caballero",
+    "Indeciso Reik J Balvin Lalo Ebratt",
+    "La Gozadera Gente de Zona Marc Anthony",
+    "Madre Tierra Oye Chayanne",
+    "Contigo Si JM Caballero",
+    "Echa Pa lla Manos Pa rriba Pitbull Papayo",
+    "Pegate Mas Dyland y Lenny",
+    "Moviendo Caderas Yandel Daddy Yankee",
+    "YAPAQUE Farruko Greeicy Steve Aoki",
+    "La Morocha Luck Ra BM",
+    "La Perla Rosalia Yahritza Y Su Esencia",
+    "Rayos de Sol Henry Mendez Juan Magan Jose De Rico",
+    "La Plena W Sound 05 Beele Ovy On The Drums",
+    "Dichavate Ya Ice Dilan",
+    "La Graciosa Quevedo Elvis Crespo",
+    "El Baifo Quevedo",
+    "Daruma El Jhota",
+    "pa ti toa Ana Mena Lola Indigo",
+    "De Lejitos Remix Jay Wheeler Omar Courtz",
+    "Al Golpito Quevedo"
+  ];
   var list=[];            // {id,title,sub}
   var results=[];
   var current=-1, isPlaying=false, shuffle=false, repeat=false;
@@ -325,17 +355,11 @@
 
   // ---------- añadir en lote ----------
   function parsePlaylistId(u){ var m=(u||"").match(/[?&]list=([a-zA-Z0-9_-]+)/); return m?m[1]:null; }
-  function bulkAdd(){
-    var raw=document.getElementById("bulkText").value;
-    var lines=raw.split("\n").map(function(s){return s.trim();}).filter(Boolean);
-    var prog=document.getElementById("bulkProg");
-    if(!lines.length){ prog.textContent=""; return; }
-    if(lines.length===1){ var pl=parsePlaylistId(lines[0]); if(pl){ importPlaylist(pl); return; } }
-    var key=getKey();
-    var i=0, added=0;
+  function addQueries(lines, setProg, done){
+    var key=getKey(), i=0, added=0;
     function step(){
-      if(i>=lines.length){ prog.textContent="Hecho: añadidas "+added+" de "+lines.length+"."; render(); return; }
-      prog.textContent="Añadiendo "+(i+1)+" de "+lines.length+"…";
+      if(i>=lines.length){ if(setProg) setProg("Hecho: añadidas "+added+" de "+lines.length+"."); render(); if(done) done(added); return; }
+      if(setProg) setProg("Añadiendo "+(i+1)+" de "+lines.length+"…");
       var line=lines[i++];
       var pid=parseId(line);
       if(pid){ if(!inList(pid)){ list.push({id:pid,title:"Vídeo "+pid,sub:"YouTube"}); added++; save(); } setTimeout(step,40); return; }
@@ -349,6 +373,14 @@
       }).catch(function(){ setTimeout(step,120); });
     }
     step();
+  }
+  function bulkAdd(){
+    var raw=document.getElementById("bulkText").value;
+    var lines=raw.split("\n").map(function(s){return s.trim();}).filter(Boolean);
+    var prog=document.getElementById("bulkProg");
+    if(!lines.length){ prog.textContent=""; return; }
+    if(lines.length===1){ var pl=parsePlaylistId(lines[0]); if(pl){ importPlaylist(pl); return; } }
+    addQueries(lines, function(t){ prog.textContent=t; });
   }
   function importPlaylist(pid){
     var key=getKey(), prog=document.getElementById("bulkProg"), added=0;
@@ -447,7 +479,17 @@
   var s=document.createElement("script"); s.src="https://www.youtube.com/iframe_api"; document.head.appendChild(s);
 
   // init
-  load(function(){ render(); if(!getKey()) toggleKeybox(true); });
+  load(function(){
+    render();
+    if(!getKey()){ toggleKeybox(true); return; }
+    var seeded=false; try{ seeded=!!localStorage.getItem(K_SEEDED); }catch(e){}
+    if(list.length===0 && !seeded && DEFAULT_QUERIES.length){
+      try{ localStorage.setItem(K_SEEDED,"1"); }catch(e){}
+      emptyEl.innerHTML="Cargando tu lista… (un momento)";
+      emptyEl.style.display="block";
+      addQueries(DEFAULT_QUERIES, function(t){ emptyEl.innerHTML=t; });
+    }
+  });
 })();
 </script>
 </body>
